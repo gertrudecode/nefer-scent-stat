@@ -8,7 +8,7 @@
 <!-- Open Graph (슬랙/카톡 등 링크 미리보기) -->
 <meta property="og:type" content="website" />
 <meta property="og:title" content="크몽 수수료 계산기" />
-<meta property="og:description" content="판매가를 넣으면 수수료와 실수령액이 바로 나옵니다. 실수령액 → 판매가 역산도 지원." />
+<meta property="og:description" content="판매가를 넣으면 수수료와 실수령액이 바로 나옵니다. 실수령액에서 판매가 역산도 지원." />
 <meta property="og:url" content="https://gertrudecode.github.io/nefer-scent-stat/kmong/" />
 <meta property="og:image" content="https://gertrudecode.github.io/nefer-scent-stat/kmong/og.png" />
 <meta property="og:image:width" content="1200" />
@@ -218,40 +218,126 @@
 
 <script>
   // ===== 수수료 정책 =====
-  const RATE = {
-    network: 0.033,   // 결제망 이용료 (판매가 전액 기준)
-    vat:     0.10,    // 부가세 (서비스+결제망 합계의 10%)
-    buyer:   0.045    // 구매 수수료 (구매자 부담)
+  var RATE = {
+    network: 0.033,
+    vat:     0.10,
+    buyer:   0.045
   };
-  // 서비스 이용료: 판매가 구간별 누진 적용
-  const TIERS = [
+  var TIERS = [
     {from: 0,       to: 700000,   rate: 0.164, label: '1구간', range: '~70만원'},
     {from: 700000,  to: 2000000,  rate: 0.094, label: '2구간', range: '70만~200만원'},
     {from: 2000000, to: Infinity, rate: 0.044, label: '3구간', range: '200만원 초과'}
   ];
 
-  let mode = 'fwd';
-  const $ = id => document.getElementById(id);
-  const won = n => Math.round(n).toLocaleString('ko-KR');
+  var mode = 'fwd';
+  function $(id){ return document.getElementById(id); }
+  function won(n){ return Math.round(n).toLocaleString('ko-KR'); }
 
-  // 구간별 서비스 이용료 계산 (누진)
   function serviceBreakdown(gross){
-    const parts = [];
-    let total = 0;
-    for(const t of TIERS){
+    var parts = [], total = 0;
+    for(var i=0;i<TIERS.length;i++){
+      var t = TIERS[i];
       if(gross <= t.from) break;
-      const taxable = Math.min(gross, t.to) - t.from;  // 이 구간에 해당하는 금액
-      const fee = taxable * t.rate;
+      var taxable = Math.min(gross, t.to) - t.from;
+      var fee = taxable * t.rate;
       total += fee;
-      parts.push({label: t.label, range: t.range, taxable, rate: t.rate, fee});
+      parts.push({label:t.label, range:t.range, taxable:taxable, rate:t.rate, fee:fee});
     }
-    return {total, parts};
+    return {total:total, parts:parts};
   }
 
-  // 판매가(결제금)로부터 전체 분해 계산
   function fromGross(gross){
-    const sb      = serviceBreakdown(gross);
-    const service = sb.total;
-    const network = gross * RATE.network;
-    const vat     = (service + network) * RATE.vat;
-    const fee     = service + network + vat;       // 판매자 �
+    var sb = serviceBreakdown(gross);
+    var service = sb.total;
+    var network = gross * RATE.network;
+    var vat = (service + network) * RATE.vat;
+    var fee = service + network + vat;
+    var net = gross - fee;
+    var buyerFee = gross * RATE.buyer;
+    var buyerPay = gross + buyerFee;
+    var effRate = gross ? service / gross : 0;
+    return {gross:gross, service:service, serviceParts:sb.parts, effRate:effRate,
+            network:network, vat:vat, fee:fee, net:net, buyerFee:buyerFee, buyerPay:buyerPay};
+  }
+
+  function grossFromNet(targetNet){
+    var lo = 0, hi = 1e12;
+    for(var i=0;i<80;i++){
+      var mid = (lo+hi)/2;
+      if(fromGross(mid).net < targetNet) lo = mid; else hi = mid;
+    }
+    return (lo+hi)/2;
+  }
+
+  function setMode(m){
+    mode = m;
+    $('mFwd').classList.toggle('active', m==='fwd');
+    $('mRev').classList.toggle('active', m==='rev');
+    $('inLabel').textContent = m==='fwd' ? '판매가 (결제금)' : '받고 싶은 실수령액';
+    $('amount').placeholder = m==='fwd' ? '200,000' : '156,660';
+    render();
+  }
+
+  function parseAmt(){
+    var raw = $('amount').value.replace(/[^0-9]/g,'');
+    return raw ? parseInt(raw,10) : 0;
+  }
+  function formatInput(){
+    var v = parseAmt();
+    $('amount').value = v ? v.toLocaleString('ko-KR') : '';
+  }
+  function addAmt(n){ $('amount').value = (parseAmt()+n).toLocaleString('ko-KR'); render(); }
+  function clearAmt(){ $('amount').value=''; render(); }
+
+  function render(){
+    var v = parseAmt();
+    var box = $('result');
+    if(!v){ box.innerHTML=''; return; }
+
+    var d = (mode==='fwd') ? fromGross(v) : fromGross(grossFromNet(v));
+
+    var headLabel = mode==='fwd' ? '내 정산액 (실수령)' : '설정해야 할 판매가';
+    var headVal   = mode==='fwd' ? d.net : d.gross;
+    var headSub   = mode==='fwd'
+      ? ('판매가 ' + won(d.gross) + '원 기준')
+      : ('이 판매가로 등록하면 ' + won(d.net) + '원을 정산받아요');
+
+    var tierRows = '';
+    if(d.serviceParts.length > 1){
+      for(var i=0;i<d.serviceParts.length;i++){
+        var p = d.serviceParts[i];
+        tierRows += '<div class="row sub"><span class="name">' + p.label + ' ' + won(p.taxable) +
+                    '원 <span class="rate">' + (p.rate*100).toFixed(1) + '%</span></span>' +
+                    '<span class="amt">-' + won(p.fee) + '원</span></div>';
+      }
+    }
+    var firstRate = d.serviceParts.length ? d.serviceParts[0].rate : 0;
+    var effLabel = (d.serviceParts.length > 1)
+      ? ('유효 ' + (d.effRate*100).toFixed(1) + '%')
+      : ((firstRate*100).toFixed(1) + '%');
+
+    box.innerHTML =
+      '<div class="headline">' +
+        '<div class="lbl"><span class="pin">●</span>' + headLabel + '</div>' +
+        '<div class="val">' + won(headVal) + '<small>원</small></div>' +
+        '<div class="sub">' + headSub + '</div>' +
+      '</div>' +
+      '<div class="rows">' +
+        '<div class="row"><span class="name">판매가 (결제금)</span><span class="amt">' + won(d.gross) + '원</span></div>' +
+        '<div class="row minus"><span class="name">서비스 이용료 <span class="rate">' + effLabel + '</span></span><span class="amt">-' + won(d.service) + '원</span></div>' +
+        tierRows +
+        '<div class="row minus"><span class="name">결제망 이용료 <span class="rate">3.3%</span></span><span class="amt">-' + won(d.network) + '원</span></div>' +
+        '<div class="row minus"><span class="name">부가세 <span class="rate">10%</span></span><span class="amt">-' + won(d.vat) + '원</span></div>' +
+        '<div class="row total"><span class="name">판매자 총 수수료</span><span class="amt">-' + won(d.fee) + '원</span></div>' +
+        '<div class="row total"><span class="name">정산액 (실수령)</span><span class="amt" style="color:var(--good)">' + won(d.net) + '원</span></div>' +
+        '<div class="row buyer"><span class="name">구매 수수료 <span class="rate">4.5%</span></span><span class="amt">+' + won(d.buyerFee) + '원</span></div>' +
+        '<div class="row buyer"><span class="name">구매자 실결제금</span><span class="amt">' + won(d.buyerPay) + '원</span></div>' +
+      '</div>';
+  }
+
+  $('amount').addEventListener('input', function(){ formatInput(); render(); });
+  $('amount').value = '200,000';
+  render();
+</script>
+</body>
+</html>
