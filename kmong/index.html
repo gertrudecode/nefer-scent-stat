@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>크몽 수수료 계산기</title>
+<meta name="description" content="크몽 판매 수수료와 실수령액을 한눈에 계산하는 계산기" />
+<style>
+  :root{
+    --bg:#0f1117;
+    --panel:#171a23;
+    --panel-2:#1d212c;
+    --line:#2a2f3c;
+    --text:#e8eaf0;
+    --muted:#9aa3b2;
+    --brand:#ff5a3c;
+    --brand-2:#ff8a3c;
+    --good:#3ddc97;
+    --blue:#5b9dff;
+    --radius:18px;
+    --shadow:0 12px 40px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:'Pretendard',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue','Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    background:radial-gradient(1200px 800px at 80% -10%,rgba(255,90,60,.12),transparent 60%),
+               radial-gradient(900px 700px at -10% 110%,rgba(91,157,255,.10),transparent 55%),
+               var(--bg);
+    color:var(--text);
+    min-height:100%;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+    padding:32px 16px 64px;
+  }
+  .wrap{max-width:560px;margin:0 auto}
+  header{text-align:center;margin-bottom:28px}
+  .logo{
+    display:inline-flex;align-items:center;gap:9px;
+    font-weight:800;font-size:14px;letter-spacing:.4px;
+    color:var(--brand);background:rgba(255,90,60,.10);
+    border:1px solid rgba(255,90,60,.25);
+    padding:7px 14px;border-radius:999px;margin-bottom:18px;
+  }
+  .logo .dot{width:8px;height:8px;border-radius:50%;background:var(--brand);box-shadow:0 0 12px var(--brand)}
+  h1{font-size:28px;font-weight:800;letter-spacing:-.5px;margin-bottom:8px}
+  header p{color:var(--muted);font-size:14.5px}
+
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    box-shadow:var(--shadow);
+    padding:24px;
+  }
+
+  .toggle{
+    display:grid;grid-template-columns:1fr 1fr;gap:6px;
+    background:var(--bg);border:1px solid var(--line);
+    border-radius:14px;padding:5px;margin-bottom:22px;
+  }
+  .toggle button{
+    font-family:inherit;font-size:13.5px;font-weight:700;
+    color:var(--muted);background:transparent;border:0;
+    padding:11px 8px;border-radius:10px;cursor:pointer;
+    transition:.18s;
+  }
+  .toggle button.active{
+    color:#fff;
+    background:linear-gradient(135deg,var(--brand),var(--brand-2));
+    box-shadow:0 6px 18px rgba(255,90,60,.30);
+  }
+
+  .field{margin-bottom:8px}
+  .field label{display:block;font-size:13px;color:var(--muted);font-weight:600;margin-bottom:9px}
+  .input-shell{
+    display:flex;align-items:center;gap:10px;
+    background:var(--bg);border:1.5px solid var(--line);
+    border-radius:14px;padding:0 16px;
+    transition:.18s;
+  }
+  .input-shell:focus-within{border-color:var(--brand);box-shadow:0 0 0 4px rgba(255,90,60,.12)}
+  .input-shell input{
+    flex:1;font-family:inherit;font-size:26px;font-weight:800;
+    color:var(--text);background:transparent;border:0;outline:none;
+    padding:16px 0;width:100%;text-align:right;letter-spacing:-.5px;
+  }
+  .input-shell input::placeholder{color:#4a5160;font-weight:700}
+  .input-shell .won{font-size:20px;font-weight:800;color:var(--muted)}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+  .chip{
+    font-family:inherit;font-size:12.5px;font-weight:700;color:var(--muted);
+    background:var(--panel);border:1px solid var(--line);
+    padding:8px 12px;border-radius:999px;cursor:pointer;transition:.15s;
+  }
+  .chip:hover{color:#fff;border-color:var(--brand);background:rgba(255,90,60,.12)}
+
+  .result{margin-top:24px}
+  .headline{
+    background:linear-gradient(135deg,rgba(61,220,151,.14),rgba(91,157,255,.10));
+    border:1px solid rgba(61,220,151,.30);
+    border-radius:16px;padding:20px 22px;margin-bottom:18px;
+  }
+  .headline .lbl{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:6px;display:flex;align-items:center;gap:7px}
+  .headline .lbl .pin{color:var(--good)}
+  .headline .val{font-size:34px;font-weight:800;letter-spacing:-1px;color:#fff}
+  .headline .val small{font-size:18px;color:var(--muted);font-weight:700;margin-left:4px}
+  .headline .sub{font-size:12.5px;color:var(--muted);margin-top:6px}
+
+  .rows{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .row{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:14px 18px;font-size:14px;
+    border-bottom:1px solid var(--line);
+  }
+  .row:last-child{border-bottom:0}
+  .row .name{color:var(--muted);font-weight:600;display:flex;align-items:center;gap:8px}
+  .row .name .rate{font-size:11px;color:#6a7282;background:var(--bg);border:1px solid var(--line);padding:2px 7px;border-radius:6px;font-weight:700}
+  .row .amt{font-weight:800;font-variant-numeric:tabular-nums}
+  .row.minus .amt{color:#ff7a66}
+  .row.total{background:var(--bg)}
+  .row.total .name{color:var(--text);font-weight:800}
+  .row.total .amt{font-size:16px}
+  .row.buyer .amt{color:var(--blue)}
+
+  .note{margin-top:18px;font-size:12px;color:#6a7282;text-align:center;line-height:1.7}
+  footer{text-align:center;margin-top:26px;font-size:12px;color:#5a6272}
+  footer a{color:var(--muted);text-decoration:none;border-bottom:1px dashed #3a414f}
+
+  @media(max-width:480px){
+    body{padding:22px 12px 48px}
+    h1{font-size:24px}
+    .headline .val{font-size:29px}
+    .input-shell input{font-size:23px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><span class="dot"></span>KMONG FEE CALCULATOR</div>
+    <h1>크몽 수수료 계산기</h1>
+    <p>판매가를 넣으면 수수료와 실수령액을 바로 계산합니다</p>
+  </header>
+
+  <div class="card">
+    <div class="toggle">
+      <button id="mFwd" class="active" onclick="setMode('fwd')">판매가 → 실수령액</button>
+      <button id="mRev" onclick="setMode('rev')">실수령액 → 판매가</button>
+    </div>
+
+    <div class="field">
+      <label id="inLabel">판매가 (결제금)</label>
+      <div class="input-shell">
+        <input id="amount" inputmode="numeric" placeholder="200,000" autocomplete="off" />
+        <span class="won">원</span>
+      </div>
+      <div class="chips">
+        <button class="chip" onclick="addAmt(50000)">+5만</button>
+        <button class="chip" onclick="addAmt(100000)">+10만</button>
+        <button class="chip" onclick="addAmt(500000)">+50만</button>
+        <button class="chip" onclick="addAmt(1000000)">+100만</button>
+        <button class="chip" onclick="clearAmt()">초기화</button>
+      </div>
+    </div>
+
+    <div class="result" id="result"></div>
+
+    <div class="note">
+      서비스 이용료 16.4% · 결제망 이용료 3.3% · 부가세 10%(수수료 합계 기준) · 구매 수수료 4.5%<br/>
+      실제 정산 금액은 크몽 정책 변경에 따라 달라질 수 있어요.
+    </div>
+  </div>
+
+  <footer>크몽 수수료 계산기 — 참고용 계산기입니다</footer>
+</div>
+
+<script>
+  // ===== 수수료 정책 =====
+  const RATE = {
+    service: 0.164,   // 서비스 이용료
+    network: 0.033,   // 결제망 이용료
+    vat:     0.10,    // 부가세 (서비스+결제망 합계의 10%)
+    buyer:   0.045    // 구매 수수료 (구매자 부담)
+  };
+
+  let mode = 'fwd';
+  const $ = id => document.getElementById(id);
+  const won = n => Math.round(n).toLocaleString('ko-KR');
+
+  // 판매가(결제금)로부터 전체 분해 계산
+  function fromGross(gross){
+    const service = gross * RATE.service;
+    const network = gross * RATE.network;
+    const vat     = (service + network) * RATE.vat;
+    const fee     = service + network + vat;       // 판매자 총 수수료
+    const net     = gross - fee;                   // 정산액(실수령)
+    const buyerFee= gross * RATE.buyer;            // 구매 수수료
+    const buyerPay= gross + buyerFee;              // 구매자 실결제금
+    return {gross, service, network, vat, fee, net, buyerFee, buyerPay};
+  }
+
+  // 정산액(net)으로부터 필요한 판매가 역산
+  // net = gross * (1 - service - network - (service+network)*vat)
+  function grossFromNet(net){
+    const k = 1 - RATE.service - RATE.network - (RATE.service + RATE.network) * RATE.vat;
+    return net / k;
+  }
+
+  function setMode(m){
+    mode = m;
+    $('mFwd').classList.toggle('active', m==='fwd');
+    $('mRev').classList.toggle('active', m==='rev');
+    $('inLabel').textContent = m==='fwd' ? '판매가 (결제금)' : '받고 싶은 실수령액';
+    $('amount').placeholder = m==='fwd' ? '200,000' : '156,660';
+    render();
+  }
+
+  function parseAmt(){
+    const raw = $('amount').value.replace(/[^0-9]/g,'');
+    return raw ? parseInt(raw,10) : 0;
+  }
+  function formatInput(){
+    const v = parseAmt();
+    $('amount').value = v ? v.toLocaleString('ko-KR') : '';
+  }
+  function addAmt(n){ $('amount').value = (parseAmt()+n).toLocaleString('ko-KR'); render(); }
+  function clearAmt(){ $('amount').value=''; render(); }
+
+  function render(){
+    const v = parseAmt();
+    const box = $('result');
+    if(!v){ box.innerHTML=''; return; }
+
+    let d;
+    if(mode==='fwd'){ d = fromGross(v); }
+    else { d = fromGross(grossFromNet(v)); }
+
+    const headLabel = mode==='fwd' ? '내 정산액 (실수령)' : '설정해야 할 판매가';
+    const headVal   = mode==='fwd' ? d.net : d.gross;
+    const headSub   = mode==='fwd'
+      ? `판매가 ${won(d.gross)}원 기준`
+      : `이 판매가로 등록하면 ${won(d.net)}원을 정산받아요`;
+
+    box.innerHTML = `
+      <div class="headline">
+        <div class="lbl"><span class="pin">●</span>${headLabel}</div>
+        <div class="val">${won(headVal)}<small>원</small></div>
+        <div class="sub">${headSub}</div>
+      </div>
+      <div class="rows">
+        <div class="row"><span class="name">판매가 (결제금)</span><span class="amt">${won(d.gross)}원</span></div>
+        <div class="row minus"><span class="name">서비스 이용료 <span class="rate">16.4%</span></span><span class="amt">-${won(d.service)}원</span></div>
+        <div class="row minus"><span class="name">결제망 이용료 <span class="rate">3.3%</span></span><span class="amt">-${won(d.network)}원</span></div>
+        <div class="row minus"><span class="name">부가세 <span class="rate">10%</span></span><span class="amt">-${won(d.vat)}원</span></div>
+        <div class="row total"><span class="name">판매자 총 수수료</span><span class="amt">-${won(d.fee)}원</span></div>
+        <div class="row total"><span class="name">정산액 (실수령)</span><span class="amt" style="color:var(--good)">${won(d.net)}원</span></div>
+        <div class="row buyer"><span class="name">구매 수수료 <span class="rate">4.5%</span></span><span class="amt">+${won(d.buyerFee)}원</span></div>
+        <div class="row buyer"><span class="name">구매자 실결제금</span><span class="amt">${won(d.buyerPay)}원</span></div>
+      </div>
+    `;
+  }
+
+  $('amount').addEventListener('input', ()=>{ formatInput(); render(); });
+  // 기본 예시
+  $('amount').value = '200,000';
+  render();
+</script>
+</body>
+</html>
