@@ -5,6 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>크몽 수수료 계산기</title>
 <meta name="description" content="크몽 판매 수수료와 실수령액을 한눈에 계산하는 계산기" />
+<!-- Open Graph (슬랙/카톡 등 링크 미리보기) -->
+<meta property="og:type" content="website" />
+<meta property="og:title" content="크몽 수수료 계산기" />
+<meta property="og:description" content="판매가를 넣으면 수수료와 실수령액이 바로 나옵니다. 실수령액 → 판매가 역산도 지원." />
+<meta property="og:url" content="https://gertrudecode.github.io/nefer-scent-stat/kmong/" />
+<meta property="og:image" content="https://gertrudecode.github.io/nefer-scent-stat/kmong/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:site_name" content="크몽 수수료 계산기" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="크몽 수수료 계산기" />
+<meta name="twitter:description" content="판매가를 넣으면 수수료와 실수령액이 바로 나옵니다." />
+<meta name="twitter:image" content="https://gertrudecode.github.io/nefer-scent-stat/kmong/og.png" />
 <style>
   :root{
     --bg:#0f1117;
@@ -252,20 +265,4 @@
       <div class="rows">
         <div class="row"><span class="name">판매가 (결제금)</span><span class="amt">${won(d.gross)}원</span></div>
         <div class="row minus"><span class="name">서비스 이용료 <span class="rate">16.4%</span></span><span class="amt">-${won(d.service)}원</span></div>
-        <div class="row minus"><span class="name">결제망 이용료 <span class="rate">3.3%</span></span><span class="amt">-${won(d.network)}원</span></div>
-        <div class="row minus"><span class="name">부가세 <span class="rate">10%</span></span><span class="amt">-${won(d.vat)}원</span></div>
-        <div class="row total"><span class="name">판매자 총 수수료</span><span class="amt">-${won(d.fee)}원</span></div>
-        <div class="row total"><span class="name">정산액 (실수령)</span><span class="amt" style="color:var(--good)">${won(d.net)}원</span></div>
-        <div class="row buyer"><span class="name">구매 수수료 <span class="rate">4.5%</span></span><span class="amt">+${won(d.buyerFee)}원</span></div>
-        <div class="row buyer"><span class="name">구매자 실결제금</span><span class="amt">${won(d.buyerPay)}원</span></div>
-      </div>
-    `;
-  }
-
-  $('amount').addEventListener('input', ()=>{ formatInput(); render(); });
-  // 기본 예시
-  $('amount').value = '200,000';
-  render();
-</script>
-</body>
-</html>
+        <div class="row
