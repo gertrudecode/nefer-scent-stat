@@ -136,6 +136,20 @@
   .row.total .name{color:var(--text);font-weight:800}
   .row.total .amt{font-size:16px}
   .row.buyer .amt{color:var(--blue)}
+  .row.sub{padding:9px 18px 9px 34px;background:rgba(255,255,255,.015)}
+  .row.sub .name{font-size:12.5px;color:#7a8294}
+  .row.sub .amt{font-size:13px;color:#8a93a4;font-weight:700}
+  .row.sub .rate{font-size:10px;padding:1px 6px}
+
+  .tier{margin-top:18px}
+  .tier h3{font-size:13px;color:var(--muted);font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+  .tier h3 .ic{color:var(--brand)}
+  .tier table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-size:13px}
+  .tier th,.tier td{padding:11px 14px;text-align:left;border-bottom:1px solid var(--line)}
+  .tier th{background:var(--bg);color:var(--muted);font-weight:700;font-size:12px}
+  .tier tr:last-child td{border-bottom:0}
+  .tier td:last-child,.tier th:last-child{text-align:right;font-weight:800;color:var(--brand-2)}
+  .tier td:first-child{color:var(--muted);font-weight:700;width:64px}
 
   .note{margin-top:18px;font-size:12px;color:#6a7282;text-align:center;line-height:1.7}
   footer{text-align:center;margin-top:26px;font-size:12px;color:#5a6272}
@@ -180,8 +194,21 @@
 
     <div class="result" id="result"></div>
 
+    <div class="tier">
+      <h3><span class="ic">▣</span>구간별 서비스 이용료</h3>
+      <table>
+        <thead><tr><th>구간</th><th>적용 구간</th><th>이용료</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>1원 ~ 700,000원</td><td>16.4%</td></tr>
+          <tr><td>2</td><td>700,001원 ~ 2,000,000원</td><td>9.4%</td></tr>
+          <tr><td>3</td><td>2,000,001원 이상</td><td>4.4%</td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <div class="note">
-      서비스 이용료 16.4% · 결제망 이용료 3.3% · 부가세 10%(수수료 합계 기준) · 구매 수수료 4.5%<br/>
+      서비스 이용료는 구간별 누진 방식으로, 각 구간에 해당하는 금액에만 그 요율이 적용됩니다.<br/>
+      여기에 결제망 이용료 3.3%, 부가세 10%(서비스+결제망 합계 기준), 구매 수수료 4.5%(구매자 부담)가 더해집니다.<br/>
       실제 정산 금액은 크몽 정책 변경에 따라 달라질 수 있어요.
     </div>
   </div>
@@ -192,77 +219,39 @@
 <script>
   // ===== 수수료 정책 =====
   const RATE = {
-    service: 0.164,   // 서비스 이용료
-    network: 0.033,   // 결제망 이용료
+    network: 0.033,   // 결제망 이용료 (판매가 전액 기준)
     vat:     0.10,    // 부가세 (서비스+결제망 합계의 10%)
     buyer:   0.045    // 구매 수수료 (구매자 부담)
   };
+  // 서비스 이용료: 판매가 구간별 누진 적용
+  const TIERS = [
+    {from: 0,       to: 700000,   rate: 0.164, label: '1구간', range: '~70만원'},
+    {from: 700000,  to: 2000000,  rate: 0.094, label: '2구간', range: '70만~200만원'},
+    {from: 2000000, to: Infinity, rate: 0.044, label: '3구간', range: '200만원 초과'}
+  ];
 
   let mode = 'fwd';
   const $ = id => document.getElementById(id);
   const won = n => Math.round(n).toLocaleString('ko-KR');
 
+  // 구간별 서비스 이용료 계산 (누진)
+  function serviceBreakdown(gross){
+    const parts = [];
+    let total = 0;
+    for(const t of TIERS){
+      if(gross <= t.from) break;
+      const taxable = Math.min(gross, t.to) - t.from;  // 이 구간에 해당하는 금액
+      const fee = taxable * t.rate;
+      total += fee;
+      parts.push({label: t.label, range: t.range, taxable, rate: t.rate, fee});
+    }
+    return {total, parts};
+  }
+
   // 판매가(결제금)로부터 전체 분해 계산
   function fromGross(gross){
-    const service = gross * RATE.service;
+    const sb      = serviceBreakdown(gross);
+    const service = sb.total;
     const network = gross * RATE.network;
     const vat     = (service + network) * RATE.vat;
-    const fee     = service + network + vat;       // 판매자 총 수수료
-    const net     = gross - fee;                   // 정산액(실수령)
-    const buyerFee= gross * RATE.buyer;            // 구매 수수료
-    const buyerPay= gross + buyerFee;              // 구매자 실결제금
-    return {gross, service, network, vat, fee, net, buyerFee, buyerPay};
-  }
-
-  // 정산액(net)으로부터 필요한 판매가 역산
-  // net = gross * (1 - service - network - (service+network)*vat)
-  function grossFromNet(net){
-    const k = 1 - RATE.service - RATE.network - (RATE.service + RATE.network) * RATE.vat;
-    return net / k;
-  }
-
-  function setMode(m){
-    mode = m;
-    $('mFwd').classList.toggle('active', m==='fwd');
-    $('mRev').classList.toggle('active', m==='rev');
-    $('inLabel').textContent = m==='fwd' ? '판매가 (결제금)' : '받고 싶은 실수령액';
-    $('amount').placeholder = m==='fwd' ? '200,000' : '156,660';
-    render();
-  }
-
-  function parseAmt(){
-    const raw = $('amount').value.replace(/[^0-9]/g,'');
-    return raw ? parseInt(raw,10) : 0;
-  }
-  function formatInput(){
-    const v = parseAmt();
-    $('amount').value = v ? v.toLocaleString('ko-KR') : '';
-  }
-  function addAmt(n){ $('amount').value = (parseAmt()+n).toLocaleString('ko-KR'); render(); }
-  function clearAmt(){ $('amount').value=''; render(); }
-
-  function render(){
-    const v = parseAmt();
-    const box = $('result');
-    if(!v){ box.innerHTML=''; return; }
-
-    let d;
-    if(mode==='fwd'){ d = fromGross(v); }
-    else { d = fromGross(grossFromNet(v)); }
-
-    const headLabel = mode==='fwd' ? '내 정산액 (실수령)' : '설정해야 할 판매가';
-    const headVal   = mode==='fwd' ? d.net : d.gross;
-    const headSub   = mode==='fwd'
-      ? `판매가 ${won(d.gross)}원 기준`
-      : `이 판매가로 등록하면 ${won(d.net)}원을 정산받아요`;
-
-    box.innerHTML = `
-      <div class="headline">
-        <div class="lbl"><span class="pin">●</span>${headLabel}</div>
-        <div class="val">${won(headVal)}<small>원</small></div>
-        <div class="sub">${headSub}</div>
-      </div>
-      <div class="rows">
-        <div class="row"><span class="name">판매가 (결제금)</span><span class="amt">${won(d.gross)}원</span></div>
-        <div class="row minus"><span class="name">서비스 이용료 <span class="rate">16.4%</span></span><span class="amt">-${won(d.service)}원</span></div>
-        <div class="row
+    const fee     = service + network + vat;       // 판매자 �
